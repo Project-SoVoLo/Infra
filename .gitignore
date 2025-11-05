@@ -1,0 +1,16 @@
+# env
+../.env
+.env.local
+.env.prod
+*.env
+
+# secrets
+secrets/*
+!secrets/.gitkeep
+secrets/sovolo_nlp_key_jy.json
+
+# mac / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/

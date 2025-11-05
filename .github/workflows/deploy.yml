@@ -1,0 +1,40 @@
+name: Deploy SoVoLo to EC2
+
+on:
+  push:
+    branches:
+      - main    # Infra 레포의 main 브랜치가 푸시될 때 자동 실행
+
+jobs:
+  deploy:
+    name: Deploy via SSH
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Infra Repository
+        uses: actions/checkout@v4
+
+      - name: SSH into EC2 and deploy
+        uses: appleboy/ssh-action@v0.1.10
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+
+            echo "🔹 Moving to SoVoLo directory"
+            cd ~/sovolo
+
+            echo "🔹 Pulling latest changes for all repos"
+            cd Backend && git fetch --all && git reset --hard origin/main && cd ..
+            cd Frontend && git fetch --all && git reset --hard origin/main && cd ..
+            cd Chatbot && git fetch --all && git reset --hard origin/main && cd ..
+            cd Infra && git fetch --all && git reset --hard origin/main
+
+            echo "🔹 Starting Docker Compose (prod)"
+            cd Infra
+            docker compose -f docker-compose.prod.yml --env-file .env.prod build
+            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+
+            echo "✅ Deployment completed successfully"
