@@ -1,5 +1,3 @@
-    version: "3.9"
-
   x-env: &envfile
     env_file:
       - ./.env.prod

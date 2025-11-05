@@ -2,39 +2,77 @@ name: Deploy SoVoLo to EC2
 
 on:
   push:
-    branches:
-      - main    # Infra 레포의 main 브랜치가 푸시될 때 자동 실행
+    branches: [ main ]   # Infra 레포 main 푸시 시 실행
 
 jobs:
   deploy:
     name: Deploy via SSH
     runs-on: ubuntu-latest
+    env:
+      DOTENV_PROD: ${{ secrets.DOTENV_PROD }}
 
     steps:
-      - name: Checkout Infra Repository
+      - name: Checkout Infra (not strictly needed for SSH-only, but fine)
         uses: actions/checkout@v4
 
-      - name: SSH into EC2 and deploy
+      - name: Deploy over SSH
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          envs: DOTENV_PROD
           script: |
-            set -e
+            set -euxo pipefail
 
-            echo "🔹 Moving to SoVoLo directory"
+            # 1) 작업 루트 준비
+            mkdir -p ~/sovolo
             cd ~/sovolo
 
-            echo "🔹 Pulling latest changes for all repos"
-            cd Backend && git fetch --all && git reset --hard origin/main && cd ..
-            cd Frontend && git fetch --all && git reset --hard origin/main && cd ..
-            cd Chatbot && git fetch --all && git reset --hard origin/main && cd ..
-            cd Infra && git fetch --all && git reset --hard origin/main
+            # 2) 레포 준비 (없으면 clone, 있으면 브랜치에 맞춰 hard reset)
+            # Backend: main
+            if [ ! -d Backend/.git ]; then
+              git clone -b main https://github.com/Project-SoVoLo/Backend.git Backend
+            else
+              (cd Backend && git fetch --all && git reset --hard origin/main)
+            fi
 
-            echo "🔹 Starting Docker Compose (prod)"
+            # Frontend: deploy   <-- 핵심 변경 포인트
+            if [ ! -d Frontend/.git ]; then
+              git clone -b deploy https://github.com/Project-SoVoLo/Frontend.git Frontend
+            else
+              (cd Frontend && git fetch --all && git reset --hard origin/deploy)
+            fi
+
+            # Chatbot: main
+            if [ ! -d Chatbot/.git ]; then
+              git clone -b main https://github.com/Project-SoVoLo/Chatbot.git Chatbot
+            else
+              (cd Chatbot && git fetch --all && git reset --hard origin/main)
+            fi
+
+            # Infra: main
+            if [ ! -d Infra/.git ]; then
+              git clone -b main https://github.com/Project-SoVoLo/Infra.git Infra
+            else
+              (cd Infra && git fetch --all && git reset --hard origin/main)
+            fi
+
+            # 3) .env.prod 갱신 (GitHub Secret -> 파일로 저장)
             cd Infra
-            docker compose -f docker-compose.prod.yml --env-file .env.prod build
-            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d
+            if [ -n "${DOTENV_PROD:-}" ]; then
+              printf '%s\n' "$DOTENV_PROD" > .env.prod
+            fi
+
+            # 4) Docker Compose 배포
+            #    - orphans 제거해서 이전에 쓰던 이름 겹치는 컨테이너 정리
+            #    - --pull 로 베이스이미지 최신화(선택)
+            docker compose -f docker-compose.prod.yml --env-file .env.prod down --remove-orphans || true
+            docker compose -f docker-compose.prod.yml --env-file .env.prod build --pull
+            docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --remove-orphans
+
+            # 5) 상태 점검(선택) - 필요시 주석 해제
+            # docker compose -f docker-compose.prod.yml ps
+            # curl -I http://localhost:8080/api/inquiry/all || true
 
             echo "✅ Deployment completed successfully"
