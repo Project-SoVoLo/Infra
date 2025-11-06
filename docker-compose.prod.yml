@@ -1,73 +1,75 @@
-  x-env: &envfile
+services:
+  backend:
+    build:
+      context: ../Backend
+    container_name: sovolo-backend
+    ports:
+      - "8080:8080"
     env_file:
       - ./.env.prod
+    volumes:
+      - ./secrets/sovolo_nlp_key_jy.json:/run/secrets/google-nlp.json:ro
+    restart: unless-stopped
 
-  services:
-    backend:
-      build:
-        context: ../Backend
-      container_name: sovolo-backend
-      ports:
-        - "8080:8080"
-      <<: *envfile
-      volumes:
-        - ./secrets/sovolo_nlp_key_jy.json:/run/secrets/google-nlp.json:ro
-      restart: unless-stopped
+  frontend:
+    build:
+      context: ../Frontend/client
+    container_name: sovolo-frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - stt
+      - backend
+    env_file:
+      - ./.env.prod
+    environment:
+      # 필요 시 조정
+      - REACT_APP_API_URL=http://localhost:5002
+    restart: unless-stopped
 
-    frontend:
-      build:
-        context: ../Frontend/client
-      container_name: sovolo-frontend
-      ports:
-        - "3000:3000"
-      depends_on:
-        - stt
-        - backend
-      environment:
-        # 필요시 API URL 조정 (지금은 STT만 예시)
-        - REACT_APP_API_URL=http://localhost:5002
-      restart: unless-stopped
+  stt:
+    build:
+      context: ../Frontend/flask-server
+    container_name: sovolo-stt
+    ports:
+      - "5002:5002"
+    env_file:
+      - ./.env.prod
+    restart: unless-stopped
 
-    stt:
-      build:
-        context: ../Frontend/flask-server
-      container_name: sovolo-stt
-      ports:
-        - "5002:5002"
-      <<: *envfile
-      restart: unless-stopped
+  gemini:
+    build:
+      context: ../Chatbot/gemini_summary
+    container_name: sovolo-gemini
+    ports:
+      - "5001:5001"
+    env_file:
+      - ./.env.prod
+    restart: unless-stopped
 
-    gemini:
-      build:
-        context: ../Chatbot/gemini_summary
-      container_name: sovolo-gemini
-      ports:
-        - "5001:5001"
-      <<: *envfile
-      restart: unless-stopped
+  phq9:
+    build:
+      context: ../Chatbot/phq9-flask-api
+    container_name: sovolo-phq9
+    ports:
+      - "5050:5050"
+    env_file:
+      - ./.env.prod
+    restart: unless-stopped
 
-    phq9:
-      build:
-        context: ../Chatbot/phq9-flask-api
-      container_name: sovolo-phq9
-      ports:
-        - "5050:5050"
-      <<: *envfile
-      restart: unless-stopped
-
-    rasa:
-    # 모델을 이미지에 포함시키기 위해 build 사용 (볼륨 마운트 없음)
+  rasa:
+    # 모델이 들어있는 Chatbot/rasa_chatbot를 이미지로 빌드 (볼륨 마운트 X)
     build:
       context: ../Chatbot/rasa_chatbot
       dockerfile: Dockerfile
     container_name: sovolo-rasa
     ports:
       - "5005:5005"
-    # Rasa를 명시적으로 실행 + 최신 모델 사용(이미지에 포함된 /app/models/latest.tar.gz)
+    env_file:
+      - ./.env.prod
+    # latest 링크를 Dockerfile에서 만들어두었다고 가정
     command: ["rasa", "run", "--enable-api", "--cors", "*", "--port", "5005", "--model", "/app/models/latest.tar.gz"]
-    <<: *envfile
     restart: unless-stopped
-    # 헬스체크로 기동 안정성 확보
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:5005/status"]
       interval: 10s
