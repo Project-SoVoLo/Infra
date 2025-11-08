@@ -2,7 +2,9 @@ name: Deploy SoVoLo to EC2
 
 on:
   push:
-    branches: [ main ]   # Infra 레포 main 푸시 시 실행
+    branches: [ main ]
+  repository_dispatch:
+    types: [ trigger-deploy ]  # 다른 레포에서 신호 받을 때도 동작
 
 jobs:
   deploy:
