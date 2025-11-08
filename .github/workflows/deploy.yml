@@ -41,9 +41,9 @@ jobs:
 
             # Frontend: deploy   <-- 핵심 변경 포인트
             if [ ! -d Frontend/.git ]; then
-              git clone -b deploy https://github.com/Project-SoVoLo/Frontend.git Frontend
+            git clone -b main https://github.com/Project-SoVoLo/Frontend.git Frontend
             else
-              (cd Frontend && git fetch --all && git reset --hard origin/deploy)
+            (cd Frontend && git fetch --all && git reset --hard origin/main)
             fi
 
             # Chatbot: main
