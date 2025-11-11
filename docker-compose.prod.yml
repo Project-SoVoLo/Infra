@@ -37,15 +37,15 @@ services:
       - ./.env.prod
     restart: unless-stopped
 
-  gemini:
-    build:
-      context: ../Chatbot/gemini_summary
-    container_name: sovolo-gemini
-    ports:
-      - "5001:5001"
-    env_file:
-      - ./.env.prod
-    restart: unless-stopped
+#  gemini:
+#    build:
+#      context: ../Chatbot/gemini_summary
+#    container_name: sovolo-gemini
+#    ports:
+#      - "5001:5001"
+#    env_file:
+#      - ./.env.prod
+#    restart: unless-stopped
 
   phq9:
     build:
@@ -57,21 +57,21 @@ services:
       - ./.env.prod
     restart: unless-stopped
 
-  rasa:
-    # 모델이 들어있는 Chatbot/rasa_chatbot를 이미지로 빌드 (볼륨 마운트 X)
-    build:
-      context: ../Chatbot/rasa_chatbot
-      dockerfile: Dockerfile
-    container_name: sovolo-rasa
-    ports:
-      - "5005:5005"
-    env_file:
-      - ./.env.prod
-    # latest 링크를 Dockerfile에서 만들어두었다고 가정
-    command: ["rasa", "run", "--enable-api", "--cors", "*", "--port", "5005", "--model", "/app/models/latest.tar.gz"]
-    restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:5005/status"]
-      interval: 10s
-      timeout: 3s
-      retries: 10
+#  rasa:
+#    # 모델이 들어있는 Chatbot/rasa_chatbot를 이미지로 빌드 (볼륨 마운트 X)
+#    build:
+#      context: ../Chatbot/rasa_chatbot
+#      dockerfile: Dockerfile
+#    container_name: sovolo-rasa
+#    ports:
+#      - "5005:5005"
+#    env_file:
+#      - ./.env.prod
+#    # latest 링크를 Dockerfile에서 만들어두었다고 가정
+#    command: ["rasa", "run", "--enable-api", "--cors", "*", "--port", "5005", "--model", "/app/models/latest.tar.gz"]
+#    restart: unless-stopped
+#    healthcheck:
+#      test: ["CMD", "wget", "-qO-", "http://localhost:5005/status"]
+#      interval: 10s
+#      timeout: 3s
+#      retries: 10
