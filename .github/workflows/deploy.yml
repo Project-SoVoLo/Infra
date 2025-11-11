@@ -77,4 +77,6 @@ jobs:
             # docker compose -f docker-compose.prod.yml ps
             # curl -I http://localhost:8080/api/inquiry/all || true
 
+            # 6) 불필요한 이미지 정리
+            docker image prune -af || true
             echo "✅ Deployment completed successfully"
