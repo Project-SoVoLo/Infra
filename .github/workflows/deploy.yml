@@ -79,4 +79,6 @@ jobs:
 
             # 6) 불필요한 이미지 정리
             docker image prune -af || true
+            docker builder prune -af || true   # 빌드 캐시 삭제
+            
             echo "✅ Deployment completed successfully"
